@@ -28,263 +28,295 @@ RCT_EXPORT_MODULE();
 
 - (instancetype)init
 {
-    if (self = [super init]) {
-        self.defaultOptions = @{
-                                @"multiple": @NO,
-                                @"cropping": @NO,
-                                @"includeBase64": @NO,
-                                @"resizeMultiple": @NO,
-                                @"maxFiles": @5,
-                                @"width": @200,
-                                @"height": @200
-                                };
-    }
+   if (self = [super init]) {
+       self.defaultOptions = @{
+                               @"multiple": @NO,
+                               @"cropping": @NO,
+                               @"resizeMultiple": @NO,
+                               @"includeBase64": @NO,
+                               @"maxFiles": @5,
+                               @"width": @200,
+                               @"height": @200
+                               };
+   }
 
-    return self;
+   return self;
 }
 
 - (void)checkCameraPermissions:(void(^)(BOOL granted))callback
 {
-    AVAuthorizationStatus status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
-    if (status == AVAuthorizationStatusAuthorized) {
-        callback(YES);
-        return;
-    } else if (status == AVAuthorizationStatusNotDetermined){
-        [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler:^(BOOL granted) {
-            callback(granted);
-            return;
-        }];
-    } else {
-        callback(NO);
-    }
+   AVAuthorizationStatus status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
+   if (status == AVAuthorizationStatusAuthorized) {
+       callback(YES);
+       return;
+   } else if (status == AVAuthorizationStatusNotDetermined){
+       [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler:^(BOOL granted) {
+           callback(granted);
+           return;
+       }];
+   } else {
+       callback(NO);
+   }
 }
 
 - (void) setConfiguration:(NSDictionary *)options
-                 resolver:(RCTPromiseResolveBlock)resolve
-                 rejecter:(RCTPromiseRejectBlock)reject {
+                resolver:(RCTPromiseResolveBlock)resolve
+                rejecter:(RCTPromiseRejectBlock)reject {
 
-    self.resolve = resolve;
-    self.reject = reject;
-    self.options = [NSMutableDictionary dictionaryWithDictionary:self.defaultOptions];
-    for (NSString *key in options.keyEnumerator) {
-        [self.options setValue:options[key] forKey:key];
-    }
+   self.resolve = resolve;
+   self.reject = reject;
+   self.options = [NSMutableDictionary dictionaryWithDictionary:self.defaultOptions];
+   for (NSString *key in options.keyEnumerator) {
+       [self.options setValue:options[key] forKey:key];
+   }
 }
 
 - (UIViewController*) getRootVC {
-    UIViewController *root = [[[[UIApplication sharedApplication] delegate] window] rootViewController];
-    while (root.presentedViewController != nil) {
-        root = root.presentedViewController;
-    }
+   UIViewController *root = [[[[UIApplication sharedApplication] delegate] window] rootViewController];
+   while (root.presentedViewController != nil) {
+       root = root.presentedViewController;
+   }
 
-    return root;
+   return root;
 }
 
 RCT_EXPORT_METHOD(openCamera:(NSDictionary *)options
-                  resolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                 resolver:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject) {
 
-    [self setConfiguration:options resolver:resolve rejecter:reject];
+   [self setConfiguration:options resolver:resolve rejecter:reject];
 
 #if TARGET_IPHONE_SIMULATOR
-    self.reject(ERROR_PICKER_CANNOT_RUN_CAMERA_ON_SIMULATOR_KEY, ERROR_PICKER_CANNOT_RUN_CAMERA_ON_SIMULATOR_MSG, nil);
-    return;
+   self.reject(ERROR_PICKER_CANNOT_RUN_CAMERA_ON_SIMULATOR_KEY, ERROR_PICKER_CANNOT_RUN_CAMERA_ON_SIMULATOR_MSG, nil);
+   return;
 #else
-    [self checkCameraPermissions:^(BOOL granted) {
-        if (!granted) {
-            self.reject(ERROR_PICKER_NO_CAMERA_PERMISSION_KEY, ERROR_PICKER_NO_CAMERA_PERMISSION_MSG, nil);
-            return;
-        }
+   [self checkCameraPermissions:^(BOOL granted) {
+       if (!granted) {
+           self.reject(ERROR_PICKER_NO_CAMERA_PERMISSION_KEY, ERROR_PICKER_NO_CAMERA_PERMISSION_MSG, nil);
+           return;
+       }
 
-        UIImagePickerController *picker = [[UIImagePickerController alloc] init];
-        picker.delegate = self;
-        picker.allowsEditing = NO;
-        picker.sourceType = UIImagePickerControllerSourceTypeCamera;
-        picker.delegate = self;
+       UIImagePickerController *picker = [[UIImagePickerController alloc] init];
+       picker.delegate = self;
+       picker.allowsEditing = NO;
+       picker.sourceType = UIImagePickerControllerSourceTypeCamera;
+       picker.delegate = self;
 
-        [[self getRootVC] presentViewController:picker animated:YES completion:nil];
-    }];
+       [[self getRootVC] presentViewController:picker animated:YES completion:nil];
+   }];
 #endif
 }
 
 - (void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info {
-    UIImage *chosenImage = [info objectForKey:UIImagePickerControllerOriginalImage];
-    [self processSingleImagePick:chosenImage withViewController:picker];
+   UIImage *chosenImage = [info objectForKey:UIImagePickerControllerOriginalImage];
+   [self processSingleImagePick:chosenImage withViewController:picker];
 }
 
 - (void)imagePickerControllerDidCancel:(UIImagePickerController *)picker {
-    self.reject(ERROR_PICKER_CANCEL_KEY, ERROR_PICKER_CANCEL_MSG, nil);
-    [picker dismissViewControllerAnimated:YES completion:NULL];
+   self.reject(ERROR_PICKER_CANCEL_KEY, ERROR_PICKER_CANCEL_MSG, nil);
+   [picker dismissViewControllerAnimated:YES completion:NULL];
 }
 
 - (NSString*) getTmpDirectory {
-    NSString* TMP_DIRECTORY = @"/react-native-image-crop-picker/";
-    return [NSTemporaryDirectory() stringByAppendingString:TMP_DIRECTORY];
+   NSString* TMP_DIRECTORY = @"/react-native-image-crop-picker/";
+   return [NSTemporaryDirectory() stringByAppendingString:TMP_DIRECTORY];
 }
 
 - (BOOL)cleanTmpDirectory {
-    NSString* tmpDirectoryPath = [self getTmpDirectory];
-    NSArray* tmpDirectory = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:tmpDirectoryPath error:NULL];
+   NSString* tmpDirectoryPath = [self getTmpDirectory];
+   NSArray* tmpDirectory = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:tmpDirectoryPath error:NULL];
 
-    for (NSString *file in tmpDirectory) {
-        BOOL deleted = [[NSFileManager defaultManager] removeItemAtPath:[NSString stringWithFormat:@"%@%@", tmpDirectoryPath, file] error:NULL];
+   for (NSString *file in tmpDirectory) {
+       BOOL deleted = [[NSFileManager defaultManager] removeItemAtPath:[NSString stringWithFormat:@"%@%@", tmpDirectoryPath, file] error:NULL];
 
-        if (!deleted) {
-            return NO;
-        }
-    }
+       if (!deleted) {
+           return NO;
+       }
+   }
 
-    return YES;
+   return YES;
 }
 
 RCT_EXPORT_METHOD(cleanSingle:(NSString *) path
-                  resolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                 resolver:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject) {
 
-    BOOL deleted = [[NSFileManager defaultManager] removeItemAtPath:path error:NULL];
+   BOOL deleted = [[NSFileManager defaultManager] removeItemAtPath:path error:NULL];
 
-    if (!deleted) {
-        reject(ERROR_CLEANUP_ERROR_KEY, ERROR_CLEANUP_ERROR_MSG, nil);
-    } else {
-        resolve(nil);
-    }
+   if (!deleted) {
+       reject(ERROR_CLEANUP_ERROR_KEY, ERROR_CLEANUP_ERROR_MSG, nil);
+   } else {
+       resolve(nil);
+   }
 }
 
 RCT_REMAP_METHOD(clean, resolver:(RCTPromiseResolveBlock)resolve
-                 rejecter:(RCTPromiseRejectBlock)reject) {
-    if (![self cleanTmpDirectory]) {
-        reject(ERROR_CLEANUP_ERROR_KEY, ERROR_CLEANUP_ERROR_MSG, nil);
-    } else {
-        resolve(nil);
-    }
+                rejecter:(RCTPromiseRejectBlock)reject) {
+   if (![self cleanTmpDirectory]) {
+       reject(ERROR_CLEANUP_ERROR_KEY, ERROR_CLEANUP_ERROR_MSG, nil);
+   } else {
+       resolve(nil);
+   }
 }
 
 RCT_EXPORT_METHOD(openPicker:(NSDictionary *)options
-                  resolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                 resolver:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject) {
 
-    [self setConfiguration:options resolver:resolve rejecter:reject];
-    [PHPhotoLibrary requestAuthorization:^(PHAuthorizationStatus status) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            // init picker
-            QBImagePickerController *imagePickerController =
-            [QBImagePickerController new];
-            imagePickerController.delegate = self;
-            imagePickerController.allowsMultipleSelection = [[self.options objectForKey:@"multiple"] boolValue];
-            imagePickerController.maximumNumberOfSelection = [[self.options objectForKey:@"maxFiles"] intValue];
-            imagePickerController.showsNumberOfSelectedAssets = YES;
-            imagePickerController.mediaType = QBImagePickerMediaTypeImage;
+   [self setConfiguration:options resolver:resolve rejecter:reject];
+   [PHPhotoLibrary requestAuthorization:^(PHAuthorizationStatus status) {
+       dispatch_async(dispatch_get_main_queue(), ^{
+           // init picker
+           QBImagePickerController *imagePickerController =
+           [QBImagePickerController new];
+           imagePickerController.delegate = self;
+           imagePickerController.allowsMultipleSelection = [[self.options objectForKey:@"multiple"] boolValue];
+           imagePickerController.maximumNumberOfSelection = [[self.options objectForKey:@"maxFiles"] intValue];
+           imagePickerController.showsNumberOfSelectedAssets = YES;
+           imagePickerController.mediaType = QBImagePickerMediaTypeImage;
 
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [[self getRootVC] presentViewController:imagePickerController animated:YES completion:nil];
-            });
-        });
-    }];
+           dispatch_async(dispatch_get_main_queue(), ^{
+               [[self getRootVC] presentViewController:imagePickerController animated:YES completion:nil];
+           });
+       });
+   }];
 }
+
+- (UIImage*)downscaleImageIfNecessary:(UIImage*)image maxWidth:(float)maxWidth maxHeight:(float)maxHeight
+{
+   UIImage* newImage = image;
+
+   // Nothing to do here
+   if (image.size.width <= maxWidth && image.size.height <= maxHeight) {
+       return newImage;
+   }
+
+   CGSize scaledSize = CGSizeMake(image.size.width, image.size.height);
+   if (maxWidth < scaledSize.width) {
+       scaledSize = CGSizeMake(maxWidth, (maxWidth / scaledSize.width) * scaledSize.height);
+   }
+   if (maxHeight < scaledSize.height) {
+       scaledSize = CGSizeMake((maxHeight / scaledSize.height) * scaledSize.width, maxHeight);
+   }
+
+   // If the pixels are floats, it causes a white line in iOS8 and probably other versions too
+   scaledSize.width = (int)scaledSize.width;
+   scaledSize.height = (int)scaledSize.height;
+
+   UIGraphicsBeginImageContext(scaledSize); // this will resize
+   [image drawInRect:CGRectMake(0, 0, scaledSize.width, scaledSize.height)];
+   newImage = UIGraphicsGetImageFromCurrentImageContext();
+   if (newImage == nil) {
+       NSLog(@"could not scale image");
+   }
+   UIGraphicsEndImageContext();
+
+   return newImage;
+}
+
 
 - (void)qb_imagePickerController:
 (QBImagePickerController *)imagePickerController
-          didFinishPickingAssets:(NSArray *)assets {
+         didFinishPickingAssets:(NSArray *)assets {
 
-    PHImageManager *manager = [PHImageManager defaultManager];
+   PHImageManager *manager = [PHImageManager defaultManager];
 
-    if ([[[self options] objectForKey:@"multiple"] boolValue]) {
-        NSMutableArray *images = [[NSMutableArray alloc] init];
-        PHImageRequestOptions* options = [[PHImageRequestOptions alloc] init];
-        options.synchronous = YES;
+   if ([[[self options] objectForKey:@"multiple"] boolValue]) {
+       NSMutableArray *images = [[NSMutableArray alloc] init];
+       PHImageRequestOptions* options = [[PHImageRequestOptions alloc] init];
+       options.synchronous = YES;
 
-        for (PHAsset *asset in assets) {
-            [manager
-             requestImageDataForAsset:asset
-             options:options
-             resultHandler:^(NSData *imageData, NSString *dataUTI, UIImageOrientation orientation, NSDictionary *info) {
-                 UIImage *image = [UIImage imageWithData:imageData];
-                 float width;
-                 float height;
-
-                 if ([[[self options] objectForKey:@"resizeMultiple"] boolValue]) {
-                   width = [[self.options valueForKey:@"width"] floatValue];
-                   height = [[self.options valueForKey:@"height"] floatValue];
-                   image = [self makeThumbnail:image width:width height:height];
-                } else {
-                   width = [@(asset.pixelWidth) floatValue];
-                   height = [@(asset.pixelHeight) floatValue];
+       for (PHAsset *asset in assets) {
+           [manager
+            requestImageDataForAsset:asset
+            options:options
+            resultHandler:^(NSData *imageData, NSString *dataUTI, UIImageOrientation orientation, NSDictionary *info) {
+                UIImage *image = [UIImage imageWithData:imageData];
+                float maxWidth = [@(asset.pixelWidth) floatValue];
+                float maxHeight = [@(asset.pixelHeight) floatValue];
+                if ([[[self options] objectForKey:@"resizeMultiple"] boolValue]) {
+                    maxWidth = [[self.options valueForKey:@"width"] floatValue];
+                }
+                if ([[[self options] objectForKey:@"resizeMultiple"] boolValue]) {
+                    maxHeight = [[self.options valueForKey:@"height"] floatValue];
                 }
 
-                 NSData *data = UIImageJPEGRepresentation(image, 1);
+                image = [self downscaleImageIfNecessary:image maxWidth:maxWidth maxHeight:maxHeight];
 
-                 NSString *filePath = [self persistFile:data];
-                 if (filePath == nil) {
-                     self.reject(ERROR_CANNOT_SAVE_IMAGE_KEY, ERROR_CANNOT_SAVE_IMAGE_MSG, nil);
-                     [imagePickerController dismissViewControllerAnimated:YES completion:nil];
-                     return;
-                 }
+                NSData *data = UIImageJPEGRepresentation(image, 1);
 
-                 [images addObject:@{
-                                     @"path": filePath,
-                                     @"width": @(width),
-                                     @"height": @(height),
-                                     @"mime": @"image/jpeg",
-                                     @"size": [NSNumber numberWithUnsignedInteger:data.length],
-                                     @"data": [[self.options objectForKey:@"includeBase64"] boolValue] ? [data base64EncodedStringWithOptions:0] : [NSNull null],
-                                     }];
-             }];
-        }
+                NSString *filePath = [self persistFile:data];
+                if (filePath == nil) {
+                    self.reject(ERROR_CANNOT_SAVE_IMAGE_KEY, ERROR_CANNOT_SAVE_IMAGE_MSG, nil);
+                    [imagePickerController dismissViewControllerAnimated:YES completion:nil];
+                    return;
+                }
 
-        self.resolve(images);
-        [imagePickerController dismissViewControllerAnimated:YES completion:nil];
-    } else {
-        [manager
-         requestImageDataForAsset:[assets objectAtIndex:0]
-         options:nil
-         resultHandler:^(NSData *imageData, NSString *dataUTI,
-                         UIImageOrientation orientation,
-                         NSDictionary *info) {
-             [self processSingleImagePick:[UIImage imageWithData:imageData] withViewController:imagePickerController];
-         }];
-    }
+                [images addObject:@{
+                                    @"path": filePath,
+                                    @"width": @(maxWidth),
+                                    @"height": @(maxHeight),
+                                    @"mime": @"image/jpeg",
+                                    @"size": [NSNumber numberWithUnsignedInteger:data.length],
+                                    @"data": [[self.options objectForKey:@"includeBase64"] boolValue] ? [data base64EncodedStringWithOptions:0] : [NSNull null],
+                                    }];
+            }];
+       }
+
+       self.resolve(images);
+       [imagePickerController dismissViewControllerAnimated:YES completion:nil];
+   } else {
+       [manager
+        requestImageDataForAsset:[assets objectAtIndex:0]
+        options:nil
+        resultHandler:^(NSData *imageData, NSString *dataUTI,
+                        UIImageOrientation orientation,
+                        NSDictionary *info) {
+            [self processSingleImagePick:[UIImage imageWithData:imageData] withViewController:imagePickerController];
+        }];
+   }
 }
 
 - (void)qb_imagePickerControllerDidCancel:(QBImagePickerController *)imagePickerController {
-    self.reject(ERROR_PICKER_CANCEL_KEY, ERROR_PICKER_CANCEL_MSG, nil);
-    [imagePickerController dismissViewControllerAnimated:YES completion:nil];
+   self.reject(ERROR_PICKER_CANCEL_KEY, ERROR_PICKER_CANCEL_MSG, nil);
+   [imagePickerController dismissViewControllerAnimated:YES completion:nil];
 }
 
 // when user selected single image, with camera or from photo gallery,
 // this method will take care of attaching image metadata, and sending image to cropping controller
 // or to user directly
 - (void) processSingleImagePick:(UIImage*)image withViewController:(UIViewController*)viewController {
-    if ([[[self options] objectForKey:@"cropping"] boolValue]) {
-        RSKImageCropViewController *imageCropVC = [[RSKImageCropViewController alloc] initWithImage:image cropMode:RSKImageCropModeCustom];
+   if ([[[self options] objectForKey:@"cropping"] boolValue]) {
+       RSKImageCropViewController *imageCropVC = [[RSKImageCropViewController alloc] initWithImage:image cropMode:RSKImageCropModeCustom];
 
-        imageCropVC.avoidEmptySpaceAroundImage = YES;
-        imageCropVC.dataSource = self;
-        imageCropVC.delegate = self;
+       imageCropVC.avoidEmptySpaceAroundImage = YES;
+       imageCropVC.dataSource = self;
+       imageCropVC.delegate = self;
 
-        [viewController dismissViewControllerAnimated:YES completion:^{
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [[self getRootVC] presentViewController:imageCropVC animated:YES completion:nil];
-            });
-        }];
-    } else {
-        NSData *data = UIImageJPEGRepresentation(image, 1);
-        NSString *filePath = [self persistFile:data];
-        if (filePath == nil) {
-            self.reject(ERROR_CANNOT_SAVE_IMAGE_KEY, ERROR_CANNOT_SAVE_IMAGE_MSG, nil);
-            [viewController dismissViewControllerAnimated:YES completion:nil];
-            return;
-        }
+       [viewController dismissViewControllerAnimated:YES completion:^{
+           dispatch_async(dispatch_get_main_queue(), ^{
+               [[self getRootVC] presentViewController:imageCropVC animated:YES completion:nil];
+           });
+       }];
+   } else {
+       NSData *data = UIImageJPEGRepresentation(image, 1);
+       NSString *filePath = [self persistFile:data];
+       if (filePath == nil) {
+           self.reject(ERROR_CANNOT_SAVE_IMAGE_KEY, ERROR_CANNOT_SAVE_IMAGE_MSG, nil);
+           [viewController dismissViewControllerAnimated:YES completion:nil];
+           return;
+       }
 
-        self.resolve(@{
-                       @"path": filePath,
-                       @"width": @(image.size.width),
-                       @"height": @(image.size.height),
-                       @"mime": @"image/jpeg",
-                       @"size": [NSNumber numberWithUnsignedInteger:data.length],
-                       @"data": [[self.options objectForKey:@"includeBase64"] boolValue] ? [data base64EncodedStringWithOptions:0] : [NSNull null],
-                       });
-        [viewController dismissViewControllerAnimated:YES completion:nil];
-    }
+       self.resolve(@{
+                      @"path": filePath,
+                      @"width": @(image.size.width),
+                      @"height": @(image.size.height),
+                      @"mime": @"image/jpeg",
+                      @"size": [NSNumber numberWithUnsignedInteger:data.length],
+                      @"data": [[self.options objectForKey:@"includeBase64"] boolValue] ? [data base64EncodedStringWithOptions:0] : [NSNull null],
+                      });
+       [viewController dismissViewControllerAnimated:YES completion:nil];
+   }
 }
 
 #pragma mark - CustomCropModeDelegates
@@ -292,50 +324,50 @@ RCT_EXPORT_METHOD(openPicker:(NSDictionary *)options
 // Returns a custom rect for the mask.
 - (CGRect)imageCropViewControllerCustomMaskRect:
 (RSKImageCropViewController *)controller {
-    CGSize maskSize = CGSizeMake(
-                                 [[self.options objectForKey:@"width"] intValue],
-                                 [[self.options objectForKey:@"height"] intValue]);
+   CGSize maskSize = CGSizeMake(
+                                [[self.options objectForKey:@"width"] intValue],
+                                [[self.options objectForKey:@"height"] intValue]);
 
-    CGFloat viewWidth = CGRectGetWidth(controller.view.frame);
-    CGFloat viewHeight = CGRectGetHeight(controller.view.frame);
+   CGFloat viewWidth = CGRectGetWidth(controller.view.frame);
+   CGFloat viewHeight = CGRectGetHeight(controller.view.frame);
 
-    CGRect maskRect = CGRectMake((viewWidth - maskSize.width) * 0.5f,
-                                 (viewHeight - maskSize.height) * 0.5f,
-                                 maskSize.width, maskSize.height);
+   CGRect maskRect = CGRectMake((viewWidth - maskSize.width) * 0.5f,
+                                (viewHeight - maskSize.height) * 0.5f,
+                                maskSize.width, maskSize.height);
 
-    return maskRect;
+   return maskRect;
 }
 
 // if provided width or height is bigger than screen w/h,
 // then we should scale draw area
 - (CGRect) scaleRect:(RSKImageCropViewController *)controller {
-    CGRect rect = controller.maskRect;
-    CGFloat viewWidth = CGRectGetWidth(controller.view.frame);
-    CGFloat viewHeight = CGRectGetHeight(controller.view.frame);
+   CGRect rect = controller.maskRect;
+   CGFloat viewWidth = CGRectGetWidth(controller.view.frame);
+   CGFloat viewHeight = CGRectGetHeight(controller.view.frame);
 
-    double scaleFactor = fmin(viewWidth / rect.size.width, viewHeight / rect.size.height);
-    rect.size.width *= scaleFactor;
-    rect.size.height *= scaleFactor;
-    rect.origin.x = (viewWidth - rect.size.width) / 2;
-    rect.origin.y = (viewHeight - rect.size.height) / 2;
+   double scaleFactor = fmin(viewWidth / rect.size.width, viewHeight / rect.size.height);
+   rect.size.width *= scaleFactor;
+   rect.size.height *= scaleFactor;
+   rect.origin.x = (viewWidth - rect.size.width) / 2;
+   rect.origin.y = (viewHeight - rect.size.height) / 2;
 
-    return rect;
+   return rect;
 }
 
 // Returns a custom path for the mask.
 - (UIBezierPath *)imageCropViewControllerCustomMaskPath:
 (RSKImageCropViewController *)controller {
-    CGRect rect = [self scaleRect:controller];
-    UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:rect
-                                               byRoundingCorners:UIRectCornerAllCorners
-                                                     cornerRadii:CGSizeMake(0, 0)];
-    return path;
+   CGRect rect = [self scaleRect:controller];
+   UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:rect
+                                              byRoundingCorners:UIRectCornerAllCorners
+                                                    cornerRadii:CGSizeMake(0, 0)];
+   return path;
 }
 
 // Returns a custom rect in which the image can be moved.
 - (CGRect)imageCropViewControllerCustomMovementRect:
 (RSKImageCropViewController *)controller {
-    return [self scaleRect:controller];
+   return [self scaleRect:controller];
 }
 
 #pragma mark - CropFinishDelegate
@@ -343,90 +375,71 @@ RCT_EXPORT_METHOD(openPicker:(NSDictionary *)options
 // Crop image has been canceled.
 - (void)imageCropViewControllerDidCancelCrop:
 (RSKImageCropViewController *)controller {
-    self.reject(ERROR_PICKER_CANCEL_KEY, ERROR_PICKER_CANCEL_MSG, nil);
-    [controller dismissViewControllerAnimated:YES completion:nil];
+   self.reject(ERROR_PICKER_CANCEL_KEY, ERROR_PICKER_CANCEL_MSG, nil);
+   [controller dismissViewControllerAnimated:YES completion:nil];
 }
 
 // The original image has been cropped.
 - (void)imageCropViewController:(RSKImageCropViewController *)controller
-                   didCropImage:(UIImage *)croppedImage
-                  usingCropRect:(CGRect)cropRect {
+                  didCropImage:(UIImage *)croppedImage
+                 usingCropRect:(CGRect)cropRect {
 
-    // we have correct rect, but not correct dimensions
-    // so resize image
-    CGSize resizedImageSize = CGSizeMake([[[self options] objectForKey:@"width"] intValue], [[[self options] objectForKey:@"height"] intValue]);
-    UIImage *resizedImage = [croppedImage resizedImageToFitInSize:resizedImageSize scaleIfSmaller:YES];
-    NSData *data = UIImageJPEGRepresentation(resizedImage, 1);
+   // we have correct rect, but not correct dimensions
+   // so resize image
+   CGSize resizedImageSize = CGSizeMake([[[self options] objectForKey:@"width"] intValue], [[[self options] objectForKey:@"height"] intValue]);
+   UIImage *resizedImage = [croppedImage resizedImageToFitInSize:resizedImageSize scaleIfSmaller:YES];
+   NSData *data = UIImageJPEGRepresentation(resizedImage, 1);
 
-    NSString *filePath = [self persistFile:data];
-    if (filePath == nil) {
-        self.reject(ERROR_CANNOT_SAVE_IMAGE_KEY, ERROR_CANNOT_SAVE_IMAGE_MSG, nil);
-        [controller dismissViewControllerAnimated:YES completion:nil];
-        return;
-    }
+   NSString *filePath = [self persistFile:data];
+   if (filePath == nil) {
+       self.reject(ERROR_CANNOT_SAVE_IMAGE_KEY, ERROR_CANNOT_SAVE_IMAGE_MSG, nil);
+       [controller dismissViewControllerAnimated:YES completion:nil];
+       return;
+   }
 
-    self.resolve(@{
-                   @"path": filePath,
-                   @"width": @(resizedImage.size.width),
-                   @"height": @(resizedImage.size.height),
-                   @"mime": @"image/jpeg",
-                   @"size": [NSNumber numberWithUnsignedInteger:data.length],
-                   @"data": [[self.options objectForKey:@"includeBase64"] boolValue] ? [data base64EncodedStringWithOptions:0] : [NSNull null],
-                   });
+   self.resolve(@{
+                  @"path": filePath,
+                  @"width": @(resizedImage.size.width),
+                  @"height": @(resizedImage.size.height),
+                  @"mime": @"image/jpeg",
+                  @"size": [NSNumber numberWithUnsignedInteger:data.length],
+                  @"data": [[self.options objectForKey:@"includeBase64"] boolValue] ? [data base64EncodedStringWithOptions:0] : [NSNull null],
+                  });
 
-    [controller dismissViewControllerAnimated:YES completion:nil];
+   [controller dismissViewControllerAnimated:YES completion:nil];
 }
 
 // at the moment it is not possible to upload image by reading PHAsset
 // we are saving image and saving it to the tmp location where we are allowed to access image later
 - (NSString*) persistFile:(NSData*)data {
-    // create tmp directory
-    NSString *tmpDirFullPath = [self getTmpDirectory];
-    BOOL dirCreated = [[NSFileManager defaultManager] createDirectoryAtPath: tmpDirFullPath
-                                                withIntermediateDirectories:YES attributes:nil error:nil];
-    if (!dirCreated) {
-        return nil;
-    }
+   // create tmp directory
+   NSString *tmpDirFullPath = [self getTmpDirectory];
+   BOOL dirCreated = [[NSFileManager defaultManager] createDirectoryAtPath: tmpDirFullPath
+                                               withIntermediateDirectories:YES attributes:nil error:nil];
+   if (!dirCreated) {
+       return nil;
+   }
 
-    // create temp file
-    NSString *filePath = [tmpDirFullPath stringByAppendingString:[[NSUUID UUID] UUIDString]];
-    filePath = [filePath stringByAppendingString:@".jpg"];
+   // create temp file
+   NSString *filePath = [tmpDirFullPath stringByAppendingString:[[NSUUID UUID] UUIDString]];
+   filePath = [filePath stringByAppendingString:@".jpg"];
 
-    // save cropped file
-    BOOL status = [data writeToFile:filePath atomically:YES];
-    if (!status) {
-        return nil;
-    }
+   // save cropped file
+   BOOL status = [data writeToFile:filePath atomically:YES];
+   if (!status) {
+       return nil;
+   }
 
-    return filePath;
+   return filePath;
 }
 
 // The original image has been cropped. Additionally provides a rotation angle
 // used to produce image.
 - (void)imageCropViewController:(RSKImageCropViewController *)controller
-                   didCropImage:(UIImage *)croppedImage
-                  usingCropRect:(CGRect)cropRect
-                  rotationAngle:(CGFloat)rotationAngle {
-    [self imageCropViewController:controller didCropImage:croppedImage usingCropRect:cropRect];
-}
-
-- (UIImage*)makeThumbnail:(UIImage*)image width:(float)width height:(float)height
-{
-  UIImage* newImage = image;
-
-  CGSize thumb = CGSizeMake(width, height);
-  thumb.width = (int)thumb.width;
-  thumb.height = (int)thumb.height;
-
-  UIGraphicsBeginImageContext(thumb);
-  [image drawInRect:CGRectMake(0, 0, thumb.width, thumb.height)];
-  newImage = UIGraphicsGetImageFromCurrentImageContext();
-  if (newImage == nil) {
-      NSLog(@"could not scale image");
-  }
-  UIGraphicsEndImageContext();
-
-  return newImage;
+                  didCropImage:(UIImage *)croppedImage
+                 usingCropRect:(CGRect)cropRect
+                 rotationAngle:(CGFloat)rotationAngle {
+   [self imageCropViewController:controller didCropImage:croppedImage usingCropRect:cropRect];
 }
 
 @end
