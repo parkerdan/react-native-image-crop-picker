@@ -62,13 +62,13 @@ ImagePicker.clean().then(() => {
 
 | Property        | Type           | Description  |
 | ------------- |:-------------:| :-----|
-| cropping | bool (default false)      | Enable or disable cropping |
+| cropping | bool (default false)      | Enable or disable cropping (Android Cropping sometimes crashes :(  ) |
 | width          | number | Width of result image when used with `cropping` option |
 | height      | number      | Height of result image when used with `cropping` option |
 | multiple | bool (default false) | Enable or disable multiple image selection |
 | includeBase64 | bool (default false) | Enable or disable returning base64 data with image |
 | maxFiles (ios only) | number (default 5) | Max number of files to select when using `multiple` option |
-| resizeMultiple | bool (default false) | Resize the `data` of the base64 file in the Response Object to the specified `height` and `width` for multi-select | 
+| resizeMultiple | bool (default false) | Resize the `data` of the base64 file in the Response Object to the specified `height` and `width` for multi-select |
 
 #### Response Object
 
