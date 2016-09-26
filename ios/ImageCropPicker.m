@@ -102,7 +102,10 @@ RCT_EXPORT_METHOD(openCamera:(NSDictionary *)options
        picker.sourceType = UIImagePickerControllerSourceTypeCamera;
        picker.delegate = self;
 
-       [[self getRootVC] presentViewController:picker animated:YES completion:nil];
+      //  [[self getRootVC] presentViewController:picker animated:YES completion:nil];
+      dispatch_async(dispatch_get_main_queue(), ^{
+            [[self getRootVC] presentViewController:picker animated:YES completion:nil];
+        });
    }];
 #endif
 }
